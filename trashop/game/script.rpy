@@ -1,4 +1,4 @@
-﻿# Определение персонажей со стандартным цветом имён
+﻿# Определение персонажей со стандартными именами
 define p = Character("Вы (Владелец ломбарда)")
 define бабушка = Character("Советская бабушка")
 define куб = Character("Мужчина с квадратной головой")
@@ -29,7 +29,7 @@ init python:
         def __init__(self, id, name, img_tag):
             self.id = id
             self.name = name
-            self.img_tag = img_tag # тег картинки для отображения
+            self.img_tag = img_tag
 
 # Экран кастомного слайдера для назначения цены
 screen offer_slider(min_val, max_val, title_text):
@@ -96,11 +96,8 @@ label start:
     
     p "Мой скромный ломбард открыт. В кармане ровно 100 рублей. Посмотрим, кто сегодня зайдет..."
     
-    # ==========================================
-    # ЭТАП 1: 3 ПРОДАВЦА
-    # Структура: (ключ, id_предмета, название, мин_цена, спрайт_персонажа, спрайт_предмета)
-    # ==========================================
-    $ sellers = [
+    # Полный список всех 5 персонажей с их параметрами продавцов
+    $ master_sellers = [
         ("бабушка", "demon", "Фигурка демона", 20, "granny", "demon"),
         ("куб", "sock", "Левый носок", 10, "square", "sock"),
         ("сектант", "tea", "Б/у чайный пакетик", 5, "fan", "teabag"),
@@ -108,8 +105,13 @@ label start:
         ("сноб", "hat", "Квадратная шляпа", 50, "snob", "hat")
     ]
     
-    $ renpy.random.shuffle(sellers)
-    $ current_sellers = sellers[:3]
+    # Перемешиваем весь список один раз (гарантирует уникальность персонажей)
+    $ renpy.random.shuffle(master_sellers)
+    
+    # Первые 3 персонажа — продавцы
+    $ current_sellers = master_sellers[:3]
+    # Оставшиеся 2 персонажа — покупатели
+    $ remaining_buyers_keys = [item[0] for item in master_sellers[3:]]
     
     python:
         seller_objects = {
@@ -125,6 +127,14 @@ label start:
             "сектант": "Сектант в балахоне",
             "девочка": "Веселая девочка",
             "сноб": "Сноб-коллекционер"
+        }
+        
+        buyers_data_dict = {
+            "бабушка": ("tea", 150, "granny"),
+            "куб": ("hat", 300, "square"),
+            "сектант": ("demon", 500, "fan"),
+            "девочка": ("sock", 200, "girl"),
+            "сноб": ("tinkoff", 400, "snob")
         }
 
     label seller_loop:
@@ -191,22 +201,13 @@ label start:
 
     label buyers_phase:
         scene bg background
-        p "Первая волна посетителей ушла. Теперь пришло время покупателей."
+        p "Первая волна посетителей ушла. Остальные два персонажа возвращаются как покупатели."
 
-    # ==========================================
-    # ЭТАП 2: 2 ПОКУПАТЕЛЯ
-    # Структура: (ключ, желаемый_id, макс_цена, спрайт_персонажа)
-    # ==========================================
-    $ buyers = [
-        ("бабушка", "tea", 150, "granny"),
-        ("куб", "hat", 300, "square"),
-        ("сектант", "demon", 500, "fan"),
-        ("девочка", "sock", 200, "girl"),
-        ("сноб", "tinkoff", 400, "snob")
-    ]
-    
-    $ renpy.random.shuffle(buyers)
-    $ current_buyers = buyers[:2]
+    python:
+        current_buyers = []
+        for b_key in remaining_buyers_keys:
+            b_info = buyers_data_dict[b_key]
+            current_buyers.append((b_key, b_info[0], b_info[1], b_info[2]))
 
     label buyer_loop:
         python:
@@ -238,72 +239,72 @@ label start:
             сноб "Надеюсь, у вас тут не сплошной хлам. Покажите ассортимент."
 
         if len(inventory) == 0:
-            p "К сожалению, у меня пока ничего нет на продажу..."
+            p "К сожалению, у меня пока нет предметов на продажу..."
             hide expression b_sprite
             $ renpy.say(current_buyer_char, "Жаль, пустая трата времени.")
             jump buyer_loop
 
         call screen inventory_choice(inventory, b_name_str)
         $ selected_item = _return
-
-        if selected_item is None:
+        # Прямая проверка: если игрок выбрал "Ничего не предлагать" (вернулся None)
+        if selected_item == True:
             hide expression b_sprite
             $ renpy.say(current_buyer_char, "Ну как хочешь.")
             jump buyer_loop
+
+        python:
+            item_obj = selected_item
+            is_desired = (item_obj.id == desired_item_id)
+            trade_attempts = 3
+
+        if not is_desired:
+            hide expression b_sprite
+            if b_key == "бабушка":
+                бабушка "И зачем мне этот срам?"
+            elif b_key == "куб":
+                куб "Это не соответствует форме."
+            elif b_key == "сектант":
+                сектант "Темные силы недовольны."
+            elif b_key == "девочка":
+                девочка "Фу, вообще не прикольно."
+            elif b_key == "сноб":
+                сноб "Какая пошлость."
+            
+            p "Не угадал с товаром."
+            jump buyer_loop
         else:
-            python:
-                item_obj = selected_item
-                is_desired = (item_obj.id == desired_item_id)
-                trade_attempts = 3
+            if b_key == "бабушка":
+                бабушка "Ой, то что надо! Сколько просишь?"
+            elif b_key == "куб":
+                куб "То, что нужно. Назови цену."
+            elif b_key == "сектант":
+                сектант "Священный артефакт! Какова цена?"
+            elif b_key == "девочка":
+                девочка "Вау, офффигенно! За сколько отдашь?"
+            elif b_key == "сноб":
+                сноб "Любопытно. Назовите вашу цену."
 
-            if not is_desired:
-                hide expression b_sprite
-                if b_key == "бабушка":
-                    бабушка "И зачем мне этот срам?"
-                elif b_key == "куб":
-                    куб "Это не соответствует форме."
-                elif b_key == "сектант":
-                    сектант "Темные силы недовольны."
-                elif b_key == "девочка":
-                    девочка "Фу, вообще не прикольно."
-                elif b_key == "сноб":
-                    сноб "Какая пошлость."
-                
-                p "Не угадал с товаром."
-                jump buyer_loop
-            else:
-                if b_key == "бабушка":
-                    бабушка "Ой, то что надо! Сколько просишь?"
-                elif b_key == "куб":
-                    куб "То, что нужно. Назови цену."
-                elif b_key == "сектант":
-                    сектант "Священный артефакт! Какова цена?"
-                elif b_key == "девочка":
-                    девочка "Вау, офффигенно! За сколько отдашь?"
-                elif b_key == "сноб":
-                    сноб "Любопытно. Назовите вашу цену."
+            label selling_trade:
+                if trade_attempts <= 0:
+                    hide expression b_sprite
+                    $ renpy.say(current_buyer_char, "Слишком дорого! Я ухожу.")
+                    jump buyer_loop
 
-                label selling_trade:
-                    if trade_attempts <= 0:
-                        hide expression b_sprite
-                        $ renpy.say(current_buyer_char, "Слишком дорого! Я ухожу.")
-                        jump buyer_loop
+                $ slider_value = 50
+                call screen offer_slider(1, 1000, "Назначьте цену продажи")
+                $ ask_price = slider_value
 
-                    $ slider_value = 50
-                    call screen offer_slider(1, 1000, "Назначьте цену продажи")
-                    $ ask_price = slider_value
-
-                    if ask_price <= max_payout:
-                        $ player_money += ask_price
-                        $ inventory.remove(item_obj)
-                        hide expression b_sprite
-                        $ renpy.say(current_buyer_char, "По рукам!")
-                        p "Я продал предмет за [ask_price] руб. Осталось денег: [player_money]."
-                        jump buyer_loop
-                    else:
-                        $ trade_attempts -= 1
-                        $ renpy.say(current_buyer_char, "Дорого! (Попыток: " + str(trade_attempts) + ")")
-                        jump selling_trade
+                if ask_price <= max_payout:
+                    $ player_money += ask_price
+                    $ inventory.remove(item_obj)
+                    hide expression b_sprite
+                    $ renpy.say(current_buyer_char, "По рукам!")
+                    p "Я продал предмет за [ask_price] руб. Осталось денег: [player_money]."
+                    jump buyer_loop
+                else:
+                    $ trade_attempts -= 1
+                    $ renpy.say(current_buyer_char, "Дорого! (Попыток: " + str(trade_attempts) + ")")
+                    jump selling_trade
 
     # ==========================================
     # ЭТАП 3: ФИНАЛ И ИТОГИ
