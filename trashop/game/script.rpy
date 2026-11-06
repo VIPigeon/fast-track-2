@@ -31,15 +31,17 @@ init python:
             self.name = name
             self.img_tag = img_tag
 
-# Экран кастомного слайдера для назначения цены
+
+# Экран увеличенного слайдера для назначения цены
 screen offer_slider(min_val, max_val, title_text):
     frame:
         xalign 0.5 yalign 0.5
-        xpadding 20 ypadding 15
+        # Увеличили отступы рамки, чтобы окно стало больше и просторнее
+        xpadding 30 ypadding 22
         background "#111111ee"
         
         vbox:
-            spacing 10
+            spacing 12
             align (0.5, 0.5)
             
             text title_text size 14 color "#ffffff" xalign 0.5
@@ -47,27 +49,35 @@ screen offer_slider(min_val, max_val, title_text):
             
             bar:
                 value VariableValue("slider_value", max_val, step=1)
-                xmaximum 150
-                xminimum 150
+                # value FieldValue(
+                #     slider_adjustment,
+                #     "value",
+                #     range=max_val - min_val,
+                #     step=1
+                # )
+                # Увеличили ширину ползунка с 150 до 230 пикселей
+                xmaximum 230
+                xminimum 230
                 yalign 0.5
             
             text "Деньги: [player_money]" size 12 color "#aaaaaa" xalign 0.5
+            # text "DEBUG: min=[min_val], max=[max_val]" xalign 0.5 yalign 0.1
             
             textbutton "OK":
                 action Return()
                 xalign 0.5
-                padding (10, 5)
+                padding (14, 6)
                 background "#333333"
 
 # Экран выбора предмета из инвентаря для продажи покупателю
 screen inventory_choice(inventory, current_buyer_name):
     frame:
         xalign 0.5 yalign 0.5
-        xpadding 20 ypadding 15
+        xpadding 25 ypadding 18
         background "#111111ee"
         
         vbox:
-            spacing 8
+            spacing 10
             align (0.5, 0.5)
             
             text "[current_buyer_name] ждет товар:" size 14 color "#ffffff" xalign 0.5
@@ -76,15 +86,16 @@ screen inventory_choice(inventory, current_buyer_name):
                 textbutton "[it.name]":
                     action Return(it)
                     xalign 0.5
-                    xminimum 180
-                    padding (8, 4)
+                    xminimum 200
+                    padding (10, 5)
                     background "#333333"
             
+            # При выборе "Ничего" возвращаем специальный шестой предмет-пустышку
             textbutton "Ничего не предлагать":
-                action Return(None)
+                action Return(Item("nothing", "Ничего", "none"))
                 xalign 0.5
-                xminimum 180
-                padding (8, 4)
+                xminimum 200
+                padding (10, 5)
                 background "#552222"
 
 label start:
@@ -184,6 +195,15 @@ label start:
                 jump seller_loop
 
             $ slider_value = 1
+
+            # "DEBUG: player_money = [player_money]"
+            # "DEBUG: slider_value = [slider_value]"
+            # $ renpy.restart_interaction()
+
+            $ slider_value = 1
+            # я сдаюсь
+            # call screen reset_slider(1, player_money, "")
+
             call screen offer_slider(1, player_money, "Предложите цену")
             $ offered_price = slider_value
 
@@ -246,16 +266,19 @@ label start:
 
         call screen inventory_choice(inventory, b_name_str)
         $ selected_item = _return
-        # Прямая проверка: если игрок выбрал "Ничего не предлагать" (вернулся None)
-        if selected_item == True:
-            hide expression b_sprite
-            $ renpy.say(current_buyer_char, "Ну как хочешь.")
-            jump buyer_loop
 
         python:
             item_obj = selected_item
-            is_desired = (item_obj.id == desired_item_id)
+            # Проверяем, выбрал ли игрок шестой предмет ("nothing")
+            is_nothing = (item_obj.id == "nothing")
+            is_desired = (not is_nothing and item_obj.id == desired_item_id)
             trade_attempts = 3
+
+        # Если игрок выбрал "Ничего не предлагать" (шестой предмет)
+        if is_nothing:
+            hide expression b_sprite
+            $ renpy.say(current_buyer_char, "Эх, ну не очень-то и хотелось.")
+            jump buyer_loop
 
         if not is_desired:
             hide expression b_sprite
@@ -314,6 +337,7 @@ label start:
         p "Рабочий день в ломбарде окончен. Пора подводить финансовые итоги."
         
         $ final_score = player_money
+        $ player_money = 100
         "Итого у вас на руках: [final_score] рублей."
 
         if final_score < 100:
@@ -321,8 +345,8 @@ label start:
         elif final_score >= 100 and final_score <= 300:
             p "Я заработал немного сверху. Неплохо для начала."
         elif final_score > 300 and final_score <= 800:
-            p "Отличный результат! Неплохо раскрутился на странных вещицах."
+            p "Отличный результат! Неплохо раскрутился на мусоре."
         else:
-            p "Я настоящий гений коммерции! Мой ломбард лучший в городе!"
+            p "Я настоящий гений! Мой хламбард лучший в городе!"
 
         return
